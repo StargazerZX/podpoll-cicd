@@ -10,17 +10,19 @@ pipelines, scanner configs and deployment code yourself:
 | Phase | Theme | Where it runs |
 |---|---|---|
 | 0 | Set up, run the app locally | Docker |
-| 1 | Basic pipeline: test, build, push (GitHub Actions + Jenkins) | GitHub, local Jenkins |
-| 2 | Shift-left: pre-commit, Gitleaks, SonarQube | GitHub, local Jenkins |
-| 3 | Trivy, TruffleHog, SBOMs, reports, a hardened pipeline | GitHub, local Jenkins |
-| 4 | Deploy to Amazon ECS on Fargate (push-based CD) | your AWS account |
-| 5 | GitOps with Argo CD on Amazon EKS (pull-based CD) | your AWS account |
+| 1 | Basic pipeline: test, build, push, branching rules | GitHub Actions |
+| 2 | Shift-left: pre-commit, Gitleaks, SonarQube | GitHub Actions |
+| 3 | Trivy, TruffleHog, SBOMs, reports, a hardened pipeline | GitHub Actions |
+| 4 | Deploy to Amazon ECS on Fargate (push-based CD) | GitHub Actions + your AWS account |
+| 5 | GitOps with Argo CD on Amazon EKS (pull-based CD) | GitHub Actions + your AWS account |
+
+GitHub Actions is the main track. A local Jenkins track for Phases 1–3 will follow later as an optional alternate path.
 
 `main` is the starting point (Phase 0): the app, tests and helpers, but **no pipelines**. That's your job.
 Reference solutions live on the `solution/phase-N` branches.
 
-> Status: Phase 0 is being built. The app, tests and local stack are done. Lab guides, the Jenkins
-> stack and the Kubernetes base are next. See [docs/build-log.md](docs/build-log.md).
+> **Start here:** [docs/labs/phase-0-setup.md](docs/labs/phase-0-setup.md).
+> Status: Phase 0 is complete; Phase 1 (GitHub Actions) is next. See [docs/build-log.md](docs/build-log.md).
 
 ## Run it locally
 
@@ -29,6 +31,7 @@ You need Docker with the Compose plugin and Git.
 ```bash
 local/up.sh dev        # builds the images and starts the stack: http://localhost:8081
 local/down.sh dev      # stops it
+local/compose.sh dev ps   # any docker compose command for one environment (ps, logs -f api, ...)
 ```
 
 | Environment | Command | URL | What you see |
@@ -104,9 +107,12 @@ api/            Flask API, gunicorn config, hashed requirements, tests, JSON con
 frontend/       static UI (index.html, app.js, logic.js, app.css), nginx config, stamp.sh, tests
 node-agent/     heartbeat reporter (DaemonSet on k8s, sidecar on ECS), tests
 local/          Docker Compose stack, env files, fake ECS metadata endpoint
-scripts/        version.sh, smoke-test.sh, test runners; maintainer/ (guard-main.sh)
+scripts/        version.sh, smoke-test.sh, security-report.py, test runners; maintainer/ (guard-main.sh)
+labs/           check-phase-N.sh, lab seeds (apply.sh / reset.sh), catch-up.sh
+.github/        rulesets-templates/ (import into your fork); workflows/ is yours to write
+security/       your scanner configs (Phases 2-3)
 deploy/         Kubernetes base (Kustomize), reference CI deployer; ECS/overlays/Argo CD come in Phases 4-5
-docs/           versions.md (every pinned version), build-log.md, screenshots/
+docs/           labs/ (the lab guides), branching/, versions.md, build-log.md, screenshots/
 ```
 
 ## Conventions worth knowing

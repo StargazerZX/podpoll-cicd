@@ -9,9 +9,7 @@ What was run to build and verify each milestone, what passed, what failed, and w
 
 **Scope of this entry:** the app changes from plan §4 (API, frontend, node-agent), hardened images,
 the local Docker Compose stack, tests, helper scripts, `guard-main.sh`.
-**Not in this entry (rest of M0):** Kubernetes base (`deploy/k8s/base`), Jenkins stack, lab guide
-`docs/labs/phase-0-setup.md`, `scripts/security-report.py`, `labs/` scripts, ruleset templates,
-branching docs, fork test.
+**Not in this entry:** see part 2 below.
 
 **Machine:** Fedora 44, kernel 7.2.8, Docker 29.8.2 (rootful, iptables+firewalld), Compose v5.6.0.
 
@@ -125,3 +123,83 @@ Other runtime checks:
 | A fork-based "student" run | the user will do this manually later |
 
 **AWS cost:** $0 (nothing created).
+
+---
+
+## M0 (part 2): Kubernetes base, security report, rulesets, labs, Phase 0 guide (2026-10-11)
+
+**Decision (user, 2026-10-11):** GitHub Actions is the main track. The Jenkins stack and Jenkinsfile
+solutions are deferred to a later optional alternate path, so they are not part of M0.
+
+### 1. `deploy/k8s/base` (Kustomize)
+
+| Check | Result |
+|---|---|
+| `kustomize build` + `kubeconform -strict` (Kubernetes 1.34 schemas) | 10/10 resources valid |
+| `trivy config` | 0 CRITICAL, 0 HIGH; 1 MEDIUM (KSV-0023 hostPath `/var/log/pods`, accepted and documented); LOWs only for "no namespace" (overlays set it) and the images' own uids 101/999 |
+| Overlay `namespace:` rewrites the RoleBinding's ServiceAccount subject | yes (`subject-ns=podpoll-dev`) |
+| **Real deploy** on a throwaway 2-node minikube (Kubernetes v1.35.1, profile `podpoll-test`, deleted afterwards) via a test overlay | all pods Running on both nodes with non-root, read-only rootfs, `drop: ALL`, RuntimeDefault seccomp |
+| `scripts/smoke-test.sh` through `kubectl port-forward` | PASS |
+| Playwright smoke test | PASS, no console errors |
+| Screenshot | [phase0-kubernetes.png](screenshots/phase0-kubernetes.png): namespace badge, DaemonSet card with pods-per-node, RBAC ALLOWED listing 7 pods |
+
+Problems found by the real deploy and fixed:
+
+1. **Trivy KSV-0121 (HIGH): node-agent mounted the host's `/proc`.** Not needed: memory, load and uptime in
+   `/proc` are not namespaced, so the container's own `/proc` shows the node's values. Removed the hostPath
+   (and the matching mount in `local/compose.yaml`); verified the numbers still appear on Docker and Kubernetes.
+2. **RBAC card listed 0 pods.** Kustomize's `labels` transformer only labels pod templates with
+   `includeTemplates: true`. Added; the card then listed all 7 pods.
+3. **pods-per-node was null.** `/var/log/pods` is `root:root 0750` on this kubelet, so uid 10001 got
+   `Permission denied`. Added `supplementalGroups: [0]` (read-only mount, still non-root); counts appeared (12 and 6).
+4. Placeholder image tags moved into the manifests (Trivy KSV-0013 checks the raw files, not the rendered output).
+
+Not verified: EKS specifics (managed node group, AL2023 node `/var/log/pods` permissions). That happens in Phase 5.
+Side effect on the build machine: `minikube start` switched the kubectl current context; after deleting the
+profile, no current context is set (the user's own contexts `lab` and `podpoll` are untouched).
+
+### 2. `scripts/security-report.py`
+
+| Check | Result |
+|---|---|
+| 13 tests fed with **real** output captured from gitleaks 8.30.1, trufflehog 3.99.2, trivy 0.74.0 (fs, config, image, with `--show-suppressed`), zizmor 1.30.1 | PASS |
+| Output validates against `api/contracts/security-summary.schema.json` | yes; 1.4 KB, fits an ECS env var |
+| End to end: generated summary → `RELEASE_SECURITY_SUMMARY` → API → card 7 | works: [phase0-security-card-fail.png](screenshots/phase0-security-card-fail.png) |
+| Fixtures contain no secrets | `gitleaks dir` and `trufflehog filesystem` on `scripts/tests/fixtures/`: 0 findings (TruffleHog copies the key into `SecretParts` too, so the fixtures keep a whitelist of fields) |
+
+Learned from the real outputs: Trivy 0.74 writes suppressed findings to `ExperimentalModifiedFindings` and
+removes them from `Vulnerabilities`; gitleaks omits ignored findings entirely (the report counts the
+declared `.gitleaksignore` entries instead). **Not verified against a live tool yet:** the SonarQube
+(`api/issues/search`, `qualitygates/project_status`) and ZAP baseline fixtures are hand-written from the
+documented formats. Phases 2 and 3 replace them with captured output.
+
+### 3. Ruleset templates
+
+`trunk.json`, `gitflow.json` and `tags.json` validate against the request schema of
+`POST /repos/{owner}/{repo}/rulesets` in GitHub's published OpenAPI description (a deliberately broken copy
+was rejected, so the check is real). **Not verified:** an actual import into a GitHub repository (no GitHub
+access used, as agreed); that happens in Phase 1.
+
+### 4. `labs/` scripts
+
+| Script | Test | Result |
+|---|---|---|
+| `check-phase-0.sh` | maintainer clone with dev running; and `BASE_URL` pointing at nothing | passes with expected warnings; fails with a hint and exit 1 |
+| `apply.sh` / `reset.sh` | scratch clone with a throwaway seed 99: apply, then unknown seed, then reset | seed staged on `lab/99-demo`; clear error for a missing seed; back on `main`, branch deleted, clean tree |
+| `catch-up.sh` | scratch clone against a fake local upstream with `solution/phase-1` | adds `upstream`, fetches, merges with a clear message and undo hint |
+| shellcheck | all scripts | clean (it caught a real bug: `_lib.sh`'s colour variable `N` collided with `catch-up.sh`'s phase number `N`) |
+
+### 5. Phase 0 lab guide (`docs/labs/phase-0-setup.md`)
+
+Followed by the maintainer on this machine: Task 3 (up), Task 4 steps 1–7 (including scale-out, prod/staging/ecs-sim,
+the chaos release and `version.sh`), and the check script. Fixed while following it: the scale command lacked
+the env files and would have built differently named images, so `local/compose.sh <env> …` was added.
+The AWS budget CLI command was checked offline only (both JSON arguments parse; the option names exist in the
+installed AWS CLI's help). **Not done:** a run by someone other than the maintainer, from a real fork
+(the user will do this later), and Task 5 against a real AWS account (postponed by the user).
+
+### Tests after this entry
+
+`scripts/test.sh`: API 79 + node-agent 5 + security-report 13 + frontend 9 = **106 passed**. `ruff`, `shellcheck`, guard clean.
+
+**AWS cost:** $0.
