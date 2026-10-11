@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cluster-pods.schema.json",
+  "title": "PodPoll cluster-pods",
+  "type": "object",
+  "required": [
+    "allowed",
+    "identity",
+    "namespace",
+    "status",
+    "message",
+    "pods"
+  ],
+  "properties": {
+    "allowed": {
+      "type": "boolean"
+    },
+    "identity": {
+      "type": "string"
+    },
+    "namespace": {
+      "type": "string"
+    },
+    "status": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "message": {
+      "type": "string"
+    },
+    "pods": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "phase",
+          "node",
+          "ready"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "phase": {
+            "type": "string"
+          },
+          "node": {
+            "type": "string"
+          },
+          "ready": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

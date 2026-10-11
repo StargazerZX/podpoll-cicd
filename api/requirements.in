@@ -1,0 +1,6 @@
+# Direct runtime dependencies. Edit THIS file, then regenerate the hashed lock file:
+#   uv pip compile --universal --python-version 3.12 --generate-hashes requirements.in -o requirements.txt
+flask
+redis
+gunicorn
+psycopg[binary]

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "release-security.schema.json",
+  "title": "PodPoll release-security",
+  "type": "object",
+  "required": [
+    "available"
+  ],
+  "properties": {
+    "available": {
+      "type": "boolean"
+    },
+    "error": {
+      "type": "string"
+    },
+    "summary": {
+      "$ref": "security-summary.schema.json"
+    }
+  },
+  "if": {
+    "properties": {
+      "available": {
+        "const": true
+      }
+    }
+  },
+  "then": {
+    "required": [
+      "summary"
+    ]
+  }
+}

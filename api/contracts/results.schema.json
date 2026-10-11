@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "results.schema.json",
+  "title": "PodPoll results",
+  "type": "object",
+  "required": [
+    "results",
+    "total",
+    "served_by",
+    "store",
+    "question"
+  ],
+  "properties": {
+    "results": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "required": [
+          "option",
+          "votes"
+        ],
+        "properties": {
+          "option": {
+            "type": "string"
+          },
+          "votes": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "total": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "served_by": {
+      "type": "string"
+    },
+    "store": {
+      "enum": [
+        "redis",
+        "postgres"
+      ]
+    },
+    "question": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}

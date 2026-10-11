@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "info.schema.json",
+  "title": "PodPoll info",
+  "type": "object",
+  "required": [
+    "pod",
+    "namespace",
+    "node",
+    "version",
+    "store",
+    "db_host",
+    "db_server",
+    "db_ok",
+    "env",
+    "platform",
+    "git_sha",
+    "ci_system",
+    "task",
+    "reset_protected",
+    "chaos"
+  ],
+  "properties": {
+    "pod": {
+      "type": "string"
+    },
+    "namespace": {
+      "type": "string"
+    },
+    "node": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "store": {
+      "enum": [
+        "redis",
+        "postgres"
+      ]
+    },
+    "db_host": {
+      "type": "string"
+    },
+    "db_server": {
+      "type": "string"
+    },
+    "db_ok": {
+      "type": "boolean"
+    },
+    "env": {
+      "type": "string"
+    },
+    "platform": {
+      "enum": [
+        "kubernetes",
+        "ecs",
+        "docker"
+      ]
+    },
+    "git_sha": {
+      "type": "string"
+    },
+    "ci_system": {
+      "type": "string"
+    },
+    "task": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "reset_protected": {
+      "type": "boolean"
+    },
+    "chaos": {
+      "type": "object",
+      "required": [
+        "ready_fail",
+        "start_delay_seconds",
+        "error_rate"
+      ],
+      "properties": {
+        "ready_fail": {
+          "type": "boolean"
+        },
+        "start_delay_seconds": {
+          "type": "number"
+        },
+        "error_rate": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

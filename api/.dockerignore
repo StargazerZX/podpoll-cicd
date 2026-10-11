@@ -1,2 +1,5 @@
-__pycache__/
-*.pyc
+# Only what the image needs goes into the build context.
+*
+!app.py
+!gunicorn.conf.py
+!requirements.txt

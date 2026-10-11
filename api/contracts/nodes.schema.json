@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nodes.schema.json",
+  "title": "PodPoll nodes",
+  "type": "object",
+  "required": [
+    "nodes"
+  ],
+  "properties": {
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "node",
+          "age_seconds",
+          "last_seen"
+        ],
+        "properties": {
+          "node": {
+            "type": "string"
+          },
+          "age_seconds": {
+            "type": "integer"
+          },
+          "last_seen": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "vote.schema.json",
+  "title": "PodPoll vote",
+  "type": "object",
+  "required": [
+    "ok",
+    "option",
+    "served_by"
+  ],
+  "properties": {
+    "ok": {
+      "const": true
+    },
+    "option": {
+      "type": "string"
+    },
+    "served_by": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}

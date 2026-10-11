@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "build.schema.json",
+  "title": "PodPoll build",
+  "type": "object",
+  "required": [
+    "version",
+    "git_sha",
+    "git_sha_short",
+    "git_ref",
+    "build_id",
+    "build_url",
+    "ci_system",
+    "build_time",
+    "source_url",
+    "commit_url"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9A-Za-z.+-]+$"
+    },
+    "git_sha": {
+      "type": "string",
+      "pattern": "^([0-9a-f]{7,40}|unknown)$"
+    },
+    "git_sha_short": {
+      "type": "string"
+    },
+    "git_ref": {
+      "type": "string"
+    },
+    "build_id": {
+      "type": "string"
+    },
+    "build_url": {
+      "type": "string"
+    },
+    "ci_system": {
+      "type": "string"
+    },
+    "build_time": {
+      "type": "string"
+    },
+    "source_url": {
+      "type": "string"
+    },
+    "commit_url": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}

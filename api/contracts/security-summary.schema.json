@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "security-summary.schema.json",
+  "title": "PodPoll security-summary",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "generated_at",
+    "status",
+    "totals",
+    "tools"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "git_sha": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "pass",
+        "fail"
+      ]
+    },
+    "gate": {
+      "type": "string"
+    },
+    "totals": {
+      "type": "object",
+      "required": [
+        "critical",
+        "high",
+        "medium",
+        "low",
+        "unknown",
+        "suppressed"
+      ],
+      "properties": {
+        "critical": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "high": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "medium": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "low": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unknown": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "suppressed": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": true
+    },
+    "tools": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "status",
+          "findings",
+          "suppressed"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pass",
+              "fail",
+              "skipped"
+            ]
+          },
+          "findings": {
+            "type": "object",
+            "required": [
+              "critical",
+              "high",
+              "medium",
+              "low",
+              "unknown"
+            ],
+            "properties": {
+              "critical": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "high": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "medium": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "low": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "unknown": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": true
+          },
+          "suppressed": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "report_url": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}
