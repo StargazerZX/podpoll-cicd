@@ -138,10 +138,8 @@ services:
       API_URL: http://api:5000
       NODE_NAME: ${NODE_NAME-docker-host}      # set but empty (ecs-sim) => named after the task
       INTERVAL_SECONDS: "10"
-      HOST_PROC: ${AGENT_HOST_PROC:-/host/proc}   # ecs-sim: /proc, like the Fargate sidecar
+      HOST_PROC: /proc               # memory/load/uptime in /proc aren't namespaced: no host mount needed
       ECS_CONTAINER_METADATA_URI_V4: ${ECS_CONTAINER_METADATA_URI_V4:-}
-    volumes:
-      - /proc:/host/proc:ro          # /var/log/pods doesn't exist outside k8s -> pods_on_node = null
     depends_on:
       api:
         condition: service_started

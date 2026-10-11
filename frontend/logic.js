@@ -78,7 +78,7 @@
       nodesHint: "Each row is reported by one node-agent pod. One agent per node — nobody scaled it.",
       nodesEmpty: "No node-agent is reporting yet. Is the node-agent DaemonSet deployed?",
       showPodsOnNode: true,
-      storageSub: "(Storage & StatefulSets)",
+      storageSub: "(Storage)",
       voteRedis: "Votes live in <b>Redis</b>: in memory, gone when the redis pod restarts (unless it has a PersistentVolume).",
       votePostgres: "Votes live in <b>PostgreSQL</b> ({db}), on a PersistentVolume. Delete that pod: it comes back with the same name and the same data.",
       storageRedis: "Redis, running as a Deployment.",

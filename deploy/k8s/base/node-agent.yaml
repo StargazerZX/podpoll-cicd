@@ -1,0 +1,84 @@
+# One node-agent per node (DaemonSet). Needs EC2 nodes on EKS: DaemonSets don't run on EKS Fargate.
+# No /proc hostPath: memory, load and uptime in /proc are NOT namespaced, so the container's own
+# /proc already shows the node's numbers. The only hostPath is /var/log/pods (read-only), to count
+# the pods on the node -- an accepted, documented risk (trivy KSV-0023).
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: node-agent
+  labels:
+    app: node-agent
+spec:
+  selector:
+    matchLabels:
+      app: node-agent
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: node-agent
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        # /var/log/pods is often root:root 0750 (kubelet default on recent versions). Group 0 as a
+        # SUPPLEMENTARY group lets the non-root agent list it read-only; it stays uid 10001.
+        supplementalGroups: [0]
+        seccompProfile:
+          type: RuntimeDefault
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: agent
+          image: podpoll-node-agent:unset-set-me-in-an-overlay
+          env:
+            - name: API_URL
+              value: http://api:5000
+            - name: HOST_PROC
+              value: /proc
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          livenessProbe:                      # the image's alive-file check, as a Kubernetes probe
+            exec:
+              command: ["python", "-c", "import os,sys,time; sys.exit(0 if time.time()-os.path.getmtime('/tmp/node-agent.alive') < 35 else 1)"]
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          volumeMounts:
+            - name: host-pod-logs
+              mountPath: /host/var/log/pods
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: host-pod-logs
+          hostPath:
+            path: /var/log/pods
+            type: Directory
+        - name: tmp
+          emptyDir:
+            sizeLimit: 1Mi

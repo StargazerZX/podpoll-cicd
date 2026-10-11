@@ -1,0 +1,97 @@
+# The backend tier: Flask + gunicorn on :5000.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  labels:
+    app: api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0          # never drop below the desired number of READY pods
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      serviceAccountName: podpoll-api
+      automountServiceAccountToken: true      # the RBAC card needs the token
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: api
+          image: podpoll-api:unset-set-me-in-an-overlay
+          ports:
+            - containerPort: 5000
+          env:
+            - name: REDIS_HOST
+              value: redis                    # a Service name
+            - name: PLATFORM
+              value: kubernetes
+            # Downward API: pods learn facts about themselves
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE              # also the default for PODPOLL_ENV (overlays set that)
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          # Optional Postgres mode: if a Secret named podpoll-db exists, its DB_* keys switch the store.
+          envFrom:
+            - secretRef:
+                name: podpoll-db
+                optional: true
+          readinessProbe:                     # "may I receive traffic?" (needs the vote store)
+            httpGet:
+              path: /readyz
+              port: 5000
+            initialDelaySeconds: 2
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 2
+          livenessProbe:                      # "am I alive?" (process only, ignores chaos flags)
+            httpGet:
+              path: /healthz
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true       # gunicorn keeps its worker files in /dev/shm
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 192Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  labels:
+    app: api
+spec:
+  selector:
+    app: api
+  ports:
+    - port: 5000
+      targetPort: 5000

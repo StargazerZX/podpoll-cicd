@@ -105,7 +105,7 @@ frontend/       static UI (index.html, app.js, logic.js, app.css), nginx config,
 node-agent/     heartbeat reporter (DaemonSet on k8s, sidecar on ECS), tests
 local/          Docker Compose stack, env files, fake ECS metadata endpoint
 scripts/        version.sh, smoke-test.sh, test runners; maintainer/ (guard-main.sh)
-k8s/            Kubernetes manifests from the original workshop (being converted to deploy/k8s/base)
+deploy/         Kubernetes base (Kustomize), reference CI deployer; ECS/overlays/Argo CD come in Phases 4-5
 docs/           versions.md (every pinned version), build-log.md, screenshots/
 ```
 

@@ -1,15 +1,13 @@
 #!/usr/bin/env bash
-# scripts/make-sa-kubeconfig.sh <namespace> <serviceaccount> [duration=1h]
+# deploy/k8s/reference/make-sa-kubeconfig.sh <namespace> <serviceaccount> [duration=1h]
 #
 # The token-based onboarding path for robots and CI pipelines: mint a short-lived,
 # on-demand token for an EXISTING ServiceAccount (`kubectl create token`, not the old
-# never-expiring Secret-token pattern -- see k8s/09-onboarding/ci-deployer-legacy-token.yaml
-# for what NOT to do) and wrap it in a stand-alone kubeconfig. No keys, no CSR, no
-# approval step -- that's the whole point of tokens for machines. See onboard-user.sh
-# for the certificate-based path used for human teammates.
+# never-expiring Secret-token pattern) and wrap it in a stand-alone kubeconfig. No keys,
+# no CSR, no approval step -- that's the whole point of tokens for machines.
 #
 # Usage:
-#   ./scripts/make-sa-kubeconfig.sh dev ci-deployer 1h
+#   deploy/k8s/reference/make-sa-kubeconfig.sh dev ci-deployer 1h
 #
 # Requires: kubectl (pointed at the target cluster), with permission to create tokens
 # for the named ServiceAccount (cluster-admin can always do this).
@@ -22,7 +20,7 @@ DURATION="${3:-1h}"
 echo "==> Verifying the ServiceAccount exists"
 if ! kubectl get serviceaccount "$SERVICEACCOUNT" -n "$NAMESPACE" >/dev/null 2>&1; then
   echo "No ServiceAccount named '$SERVICEACCOUNT' in namespace '$NAMESPACE'." >&2
-  echo "Create it first (see k8s/09-onboarding/ci-deployer.yaml for an example)." >&2
+  echo "Create it first (see deploy/k8s/reference/ci-deployer.yaml for an example)." >&2
   exit 1
 fi
 

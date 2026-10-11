@@ -1,0 +1,26 @@
+# PodPoll Kustomize BASE: everything an environment has in common.
+# Provided on main. Overlays (deploy/k8s/overlays/<env>, Phase 5, you write them) set:
+#   * the namespace (podpoll-dev, podpoll-prod, ...)
+#   * the images: registry + immutable DIGEST (kustomize edit set image ...)
+#   * PODPOLL_ENV, replicas, the security-summary ConfigMap, Argo CD sync waves
+# Converted from the Kubernetes workshop manifests: same names, labels, probes and Downward API env;
+# hardened (non-root, read-only root filesystem, no capabilities, RuntimeDefault seccomp, limits).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+labels:
+  - pairs:
+      part-of: podpoll            # the RBAC card lists pods by this label: keep it
+    includeSelectors: false
+    includeTemplates: true        # ...so it must be on the POD templates too, not just the objects
+
+resources:
+  - redis.yaml
+  - api-rbac.yaml
+  - api.yaml
+  - frontend.yaml
+  - node-agent.yaml
+
+# Image placeholders live in the manifests themselves (podpoll-*:unset-set-me-in-an-overlay).
+# An overlay MUST replace them with a registry and a DIGEST (kustomize edit set image ...).
+# "unset" makes a forgotten override fail loudly (ImagePullBackOff) instead of running something old.
