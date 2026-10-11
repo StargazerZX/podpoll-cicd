@@ -73,6 +73,9 @@ Problems found and fixed on the way:
    `set(key, value, ex=ttl)`, which has the same semantics.
 6. **Agent name in ECS simulation.** Compose always set `NODE_NAME`, so the agent ignored the task metadata.
    Now an empty `NODE_NAME` counts as unset, and Compose uses `${NODE_NAME-docker-host}`.
+7. **`local/down.sh` left Postgres running.** Without the env file, the `postgres` profile was inactive, so
+   `down` skipped that container (and its network). Now it runs `down --profile "*"`; verified that
+   `local/down.sh prod-postgres -v` leaves no container, network or volume behind.
 
 ### 4. The local stack (`local/up.sh`)
 
