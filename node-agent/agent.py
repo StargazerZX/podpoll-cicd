@@ -1,9 +1,12 @@
 """
-node-agent  --  the DaemonSet workload.
+node-agent  --  one reporter per node.
 
-One copy of this runs on EVERY node. Every INTERVAL seconds it looks at the node it is
-running on (through hostPath mounts) and reports to the PodPoll API, which shows it in the UI.
+  * Kubernetes: a DaemonSet, so one copy runs on EVERY node, reading the node through hostPath mounts.
+  * Amazon ECS (Fargate): a sidecar container in the API task. Every Fargate task is its own
+    micro-VM, so "the node" is the task: it reads /proc of that VM and names itself after the task.
+  * Docker: one container per host, with the host's /proc mounted.
 
+Every INTERVAL seconds it reports to the PodPoll API, which shows it in the UI.
 Standard library only, so the image stays tiny.
 """
 import json
@@ -18,10 +21,38 @@ import urllib.request
 
 API_URL = os.getenv("API_URL", "http://api:5000")            # <-- a Kubernetes Service name again
 INTERVAL = int(os.getenv("INTERVAL_SECONDS", "10"))
-NODE_NAME = os.getenv("NODE_NAME", "unknown-node")           # Downward API: spec.nodeName
+NODE_NAME = os.getenv("NODE_NAME") or "unknown-node"         # Downward API: spec.nodeName
 POD_NAME = os.getenv("POD_NAME", socket.gethostname())       # Downward API: metadata.name
 HOST_PROC = os.getenv("HOST_PROC", "/host/proc")             # hostPath: /proc
 HOST_POD_LOGS = os.getenv("HOST_POD_LOGS", "/host/var/log/pods")  # hostPath: /var/log/pods
+APP_VERSION = os.getenv("APP_VERSION", "dev")                # baked into the image at build time
+# Touched on every loop; the image HEALTHCHECK fails if it goes stale (= the loop is stuck).
+ALIVE_FILE = os.getenv("ALIVE_FILE", "/tmp/node-agent.alive")  # noqa: S108 -- per-container tmp
+
+
+def ecs_task_metadata(timeout: float = 1.0) -> dict:
+    """On ECS, the agent injects ECS_CONTAINER_METADATA_URI_V4. Read the task metadata once;
+    on any failure just return {} -- the agent must never crash over decoration."""
+    base = os.getenv("ECS_CONTAINER_METADATA_URI_V4")
+    if not base:
+        return {}
+    try:
+        with urllib.request.urlopen(f"{base}/task", timeout=timeout) as resp:
+            task = json.loads(resp.read())
+    except Exception as e:  # noqa: BLE001
+        print(f"could not read ECS task metadata ({e}); carrying on without it", flush=True)
+        return {}
+    return {
+        "task_id": str(task.get("TaskARN", "")).rsplit("/", 1)[-1] or "unknown",
+        "az": task.get("AvailabilityZone", "unknown"),
+        "launch_type": task.get("LaunchType", "unknown"),
+    }
+
+
+ECS_TASK = ecs_task_metadata()
+if ECS_TASK and not os.getenv("NODE_NAME"):
+    # Each Fargate task is its own micro-VM: the task IS the node. The task ID keeps rows unique.
+    NODE_NAME = f"task-{ECS_TASK['task_id'][:12]}"
 
 
 def read_meminfo() -> dict:
@@ -67,7 +98,19 @@ def collect() -> dict:
         "uptime_hours": round((read_first_float(f"{HOST_PROC}/uptime", 0) or 0) / 3600, 1),
         "mem_used_pct": mem_used_pct,
         "pods_on_node": count_pods_on_node(),
+        # additive fields (CI/CD edition); null outside ECS
+        "agent_version": APP_VERSION,
+        "az": ECS_TASK.get("az"),
+        "launch_type": ECS_TASK.get("launch_type"),
     }
+
+
+def touch_alive() -> None:
+    try:
+        with open(ALIVE_FILE, "w") as f:
+            f.write(str(time.time()))
+    except OSError:
+        pass
 
 
 def send(payload: dict) -> None:
@@ -83,10 +126,11 @@ def send(payload: dict) -> None:
 
 def main() -> None:
     # Python running as PID 1 in a container ignores SIGTERM by default, which would make
-    # `kubectl delete pod` hang for the full 30 s grace period. Exit promptly instead.
+    # `kubectl delete pod` / `docker stop` hang for the full grace period. Exit promptly instead.
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
     print(f"node-agent starting on node={NODE_NAME} pod={POD_NAME} -> {API_URL}", flush=True)
     while True:
+        touch_alive()
         payload = collect()
         try:
             send(payload)
