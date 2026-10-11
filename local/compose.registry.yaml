@@ -1,0 +1,21 @@
+# Run images a PIPELINE built and pushed, instead of building them locally:
+#
+#   IMAGE_REGISTRY=ghcr.io/<you> IMAGE_TAG=sha-<12 hex chars> \
+#     docker compose -p podpoll-ci -f local/compose.yaml -f local/compose.registry.yaml \
+#       --env-file local/env/dev.env up -d
+#
+# (Jenkins track: IMAGE_REGISTRY=localhost:5001.) Card 6 then shows the pipeline's commit,
+# run number and CI system -- proof that you are running exactly what CI produced.
+services:
+  api:
+    build: !reset null
+    image: ${IMAGE_REGISTRY:?set IMAGE_REGISTRY, e.g. ghcr.io/<you>}/podpoll-api:${IMAGE_TAG:?set IMAGE_TAG, e.g. sha-0123456789ab}
+    pull_policy: always
+  frontend:
+    build: !reset null
+    image: ${IMAGE_REGISTRY:?set IMAGE_REGISTRY}/podpoll-frontend:${IMAGE_TAG:?set IMAGE_TAG}
+    pull_policy: always
+  node-agent:
+    build: !reset null
+    image: ${IMAGE_REGISTRY:?set IMAGE_REGISTRY}/podpoll-node-agent:${IMAGE_TAG:?set IMAGE_TAG}
+    pull_policy: always

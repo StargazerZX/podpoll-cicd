@@ -1,0 +1,154 @@
+# PodPoll on plain Docker. One Compose *project* == one environment (like a k8s namespace):
+#   local/up.sh dev          # == docker compose -p podpoll-dev -f local/compose.yaml --env-file local/env/dev.env up -d --build
+#   local/up.sh prod
+#   local/down.sh dev
+# Each project gets its own network, so the bare name "api" resolves only inside that project.
+# All images are pinned by digest (docs/versions.md). Our own images also run read-only, with no
+# Linux capabilities and no privilege escalation -- the Docker equivalent of a k8s securityContext.
+
+x-build-args: &build-args            # filled in by scripts/version.sh (local/up.sh does this for you)
+  GIT_SHA: ${GIT_SHA:-unknown}
+  GIT_REF: ${GIT_REF:-unknown}
+  BUILD_ID: ${BUILD_ID:-local}
+  BUILD_URL: ${BUILD_URL:-}
+  CI_SYSTEM: ${CI_SYSTEM:-local}
+  BUILD_TIME: ${BUILD_TIME:-unknown}
+  SOURCE_URL: ${SOURCE_URL:-}
+
+x-hardened: &hardened
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  tmpfs: ["/tmp"]
+  restart: unless-stopped
+
+services:
+  redis:
+    image: redis:7.4.11-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
+    command: ["redis-server", "--save", "", "--appendonly", "no"]   # ephemeral: votes vanish on restart
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 5
+    restart: unless-stopped
+
+  postgres:                       # only started when the "postgres" profile is active
+    image: postgres:17.11-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
+    profiles: ["postgres"]        # pinned to 17: 18 moved PGDATA (see podpoll-context §C6)
+    command: ["postgres", "-c", "cluster_name=${PODPOLL_ENV:-default}-postgres"]
+    environment:
+      POSTGRES_USER: ${DB_USER:-podpoll}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-}     # no default on purpose: set it in your (git-ignored) env file
+      POSTGRES_DB: ${DB_NAME:-podpoll}
+      PGDATA: /var/lib/postgresql/data/pgdata  # a SUBdirectory of the mount (lost+found!)
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+
+  ecs-metadata:                   # "ecs-sim" profile: fakes the ECS task metadata endpoint v4
+    image: python:3.12.15-slim@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1
+    profiles: ["ecs-sim"]
+    command: ["python", "/srv/server.py"]
+    user: "10001:10001"
+    environment:
+      PODPOLL_ENV: ${PODPOLL_ENV:-default}
+      FAKE_TASK_REVISION: ${FAKE_TASK_REVISION:-7}
+      FAKE_REGION: ${FAKE_REGION:-eu-central-1}
+    volumes:
+      - ./fake-ecs-metadata/server.py:/srv/server.py:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=2)"]
+      interval: 2s
+      retries: 10
+    <<: *hardened
+
+  api:
+    build:
+      context: ../api
+      args:
+        <<: *build-args
+        APP_VERSION: ${API_VERSION:-${APP_VERSION:-1.0}}
+    image: podpoll-api:${API_VERSION:-${IMAGE_TAG:-local}}           # a tag must not contain "+"
+    environment:
+      REDIS_HOST: redis
+      PODPOLL_ENV: ${PODPOLL_ENV:-default}     # drives the coloured env badge in the UI
+      NODE_NAME: ${NODE_NAME-docker-host}      # set but empty (ecs-sim) => the ECS AZ / launch type
+      PLATFORM: ${PLATFORM:-}                  # empty => auto-detect (here: docker)
+      ECS_CONTAINER_METADATA_URI_V4: ${ECS_CONTAINER_METADATA_URI_V4:-}
+      DB_HOST: ${DB_HOST:-}                    # empty => Redis mode; "postgres" => Postgres mode
+      DB_NAME: ${DB_NAME:-podpoll}
+      DB_USER: ${DB_USER:-podpoll}
+      DB_PASSWORD: ${DB_PASSWORD:-}
+      POLL_QUESTION: ${POLL_QUESTION:-}
+      POLL_OPTIONS: ${POLL_OPTIONS:-}
+      RESET_TOKEN: ${RESET_TOKEN:-}
+      CHAOS_READY_FAIL: ${CHAOS_READY_FAIL:-}
+      CHAOS_START_DELAY_SECONDS: ${CHAOS_START_DELAY_SECONDS:-}
+      CHAOS_ERROR_RATE: ${CHAOS_ERROR_RATE:-}
+      RELEASE_SECURITY_SUMMARY: ${RELEASE_SECURITY_SUMMARY:-}
+      RELEASE_SECURITY_SUMMARY_FILE: ${RELEASE_SECURITY_SUMMARY_FILE:-}
+    volumes:
+      - ./sample:/sample:ro                    # sample security summary for card 7 (see env/*.env)
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:                                # waited on only when the profile is active
+        condition: service_healthy
+        required: false
+      ecs-metadata:
+        condition: service_healthy
+        required: false
+    healthcheck:                               # readiness here, so dependants wait for a working store
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/readyz', timeout=2)"]
+      interval: 5s
+      retries: 5
+    deploy:
+      replicas: ${API_REPLICAS:-2}
+    <<: *hardened
+
+  frontend:
+    build:
+      context: ../frontend
+      args:
+        <<: *build-args
+        APP_VERSION: ${FRONTEND_VERSION:-${APP_VERSION:-1.0}}
+    image: podpoll-frontend:${FRONTEND_VERSION:-${IMAGE_TAG:-local}}
+    environment:
+      UPSTREAM: api:5000
+    ports:
+      - "${FRONTEND_PORT:-8080}:8080"
+    depends_on:
+      api:
+        condition: service_started   # nginx resolves "api" once at startup; it must exist first
+    <<: *hardened
+    tmpfs: ["/tmp", "/etc/nginx/conf.d:uid=101,gid=101"]   # the template is rendered here at start
+
+  node-agent:
+    build:
+      context: ../node-agent
+      args:
+        <<: *build-args
+        APP_VERSION: ${AGENT_VERSION:-${APP_VERSION:-1.0}}
+    image: podpoll-node-agent:${AGENT_VERSION:-${IMAGE_TAG:-local}}
+    environment:
+      API_URL: http://api:5000
+      NODE_NAME: ${NODE_NAME-docker-host}      # set but empty (ecs-sim) => named after the task
+      INTERVAL_SECONDS: "10"
+      HOST_PROC: ${AGENT_HOST_PROC:-/host/proc}   # ecs-sim: /proc, like the Fargate sidecar
+      ECS_CONTAINER_METADATA_URI_V4: ${ECS_CONTAINER_METADATA_URI_V4:-}
+    volumes:
+      - /proc:/host/proc:ro          # /var/log/pods doesn't exist outside k8s -> pods_on_node = null
+    depends_on:
+      api:
+        condition: service_started
+      ecs-metadata:
+        condition: service_healthy
+        required: false
+    <<: *hardened
+
+volumes:
+  pgdata:

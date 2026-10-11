@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.coverage
+coverage.xml
+.pytest_cache/
+
+# Node / Playwright
+node_modules/
+test-results/
+playwright-report/
+
+# Local runs: generated build stamp and env files that hold secrets
+local/.build.env
+local/env/*.env
+!local/env/dev.env
+!local/env/staging.env
+!local/env/prod.env
+!local/env/ecs-sim.env
+
+# Scanner output (pipelines write reports here)
+reports/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
