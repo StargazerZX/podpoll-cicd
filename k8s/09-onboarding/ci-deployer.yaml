@@ -1,0 +1,44 @@
+# Module 9 — Onboarding a robot
+# A CI pipeline needs to ship new image tags and roll back bad ones in "dev" -- and nothing
+# else. It gets its own ServiceAccount (never a human's kubeconfig, never cluster-admin).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ci-deployer
+  namespace: dev
+  labels:
+    part-of: podpoll
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: deployer
+  namespace: dev
+  labels:
+    part-of: podpoll
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "patch", "update"]   # `kubectl set image` + `rollout status`
+  - apiGroups: ["apps"]
+    resources: ["replicasets"]
+    verbs: ["get", "list", "watch"]   # `rollout status` / `rollout undo` read these
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]   # so `rollout status` can see the new pods come up
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ci-deployer
+  namespace: dev
+  labels:
+    part-of: podpoll
+subjects:
+  - kind: ServiceAccount
+    name: ci-deployer
+    namespace: dev
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: deployer

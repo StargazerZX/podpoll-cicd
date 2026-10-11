@@ -1,0 +1,74 @@
+# Module 2 — Deployments
+# The backend tier: 2 replicas of the Python API.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api                  # the name of the Deployment object (what you type in kubectl)
+  labels:
+    app: api
+    part-of: podpoll
+spec:
+  replicas: 2                # DESIRED state: "I want 2 copies running. Always."
+  selector:
+    matchLabels:
+      app: api               # "I own every pod carrying THIS label..."
+  strategy:
+    type: RollingUpdate      # replace pods gradually, never all at once
+    rollingUpdate:
+      maxSurge: 1            # may run 1 extra pod during an update
+      maxUnavailable: 0      # never drop below the desired number of ready pods
+  template:                  # ---- the pod blueprint ----
+    metadata:
+      labels:
+        app: api             # ...so the blueprint MUST stamp that label on its pods.
+        part-of: podpoll
+    spec:
+      containers:
+        - name: api
+          image: podpoll-api:1.0            # change this tag => rolling update
+          imagePullPolicy: IfNotPresent     # use the copy that build.sh loaded into the node
+          ports:
+            - containerPort: 5000
+          env:
+            - name: REDIS_HOST
+              value: redis                  # <-- the NAME of a Service (Module 3!)
+            # Downward API: pods can learn facts about themselves
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          # Module 7: when this Secret exists, its DB_HOST/DB_NAME/DB_USER/DB_PASSWORD keys
+          # become env vars too, and app.py switches from Redis to PostgreSQL. `optional: true`
+          # means Modules 2-6 work fine with no such Secret in the cluster yet.
+          envFrom:
+            - secretRef:
+                name: podpoll-db
+                optional: true
+          readinessProbe:                   # "may I receive traffic?"  (needs Redis)
+            httpGet:
+              path: /readyz
+              port: 5000
+            initialDelaySeconds: 2
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 2
+          livenessProbe:                    # "am I alive?"  (process only)
+            httpGet:
+              path: /healthz
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 128Mi

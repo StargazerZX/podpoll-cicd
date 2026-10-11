@@ -1,0 +1,67 @@
+# Module 6 — Storage
+# Give Redis a disk. This REPLACES the ephemeral Redis Deployment from Module 2 --
+# delete the old one first (see the lab guide for why: `strategy.type` can't be changed
+# in place once the apiserver has defaulted `rollingUpdate` onto the object).
+#
+# The Service from k8s/02-deployments/redis.yaml is untouched; only the Deployment changes.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-data
+  labels:
+    app: redis
+    part-of: podpoll
+spec:
+  storageClassName: local-path      # dynamic, multi-node-safe (unlike "standard")
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 256Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  labels:
+    app: redis
+    part-of: podpoll
+spec:
+  replicas: 1
+  # Recreate, not RollingUpdate: an AOF file on disk can only be safely written by ONE
+  # Redis process at a time. Kill the old pod fully before starting the new one.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+        part-of: podpoll
+    spec:
+      # This pod never calls the Kubernetes API, so it gets no token to leak (Module 8).
+      automountServiceAccountToken: false
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          args: ["--appendonly", "yes"]     # now WITH persistence -- votes survive a restart
+          ports:
+            - containerPort: 6379
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+          volumeMounts:
+            - name: data
+              mountPath: /data     # redis:7-alpine's default working dir / AOF+RDB location
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: redis-data

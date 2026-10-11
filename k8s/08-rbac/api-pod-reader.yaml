@@ -1,0 +1,32 @@
+# Module 8 — RBAC & ServiceAccounts
+# A Role is a NAMESPACED set of permissions -- "in THIS namespace, these verbs on these
+# resources are allowed." It grants nothing by itself until a RoleBinding attaches it to
+# somebody. This binding only covers the "default" namespace: podpoll-api can list pods
+# here, and nowhere else, until you bind it elsewhere too.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pod-reader
+  namespace: default
+  labels:
+    part-of: podpoll
+rules:
+  - apiGroups: [""]                 # "" is the "core" API group (pods, services, secrets, ...)
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: api-reads-pods
+  namespace: default
+  labels:
+    part-of: podpoll
+subjects:
+  - kind: ServiceAccount
+    name: podpoll-api
+    namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: pod-reader

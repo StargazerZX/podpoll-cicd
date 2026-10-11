@@ -1,0 +1,56 @@
+# Module 2 — Deployments
+# The database tier: one Redis pod, kept alive by a Deployment.
+#
+# This file also contains a Service. We apply it now so the API can find Redis,
+# but we will not explain it until Module 3. (Consider it a spoiler. 😉)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  labels:
+    app: redis
+    part-of: podpoll
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+        part-of: podpoll
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          # No persistence on purpose: data lives only as long as the pod does.
+          # (Durable storage = StatefulSets + PersistentVolumes = a later workshop.)
+          args: ["--save", "", "--appendonly", "no"]
+          ports:
+            - containerPort: 6379
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+---
+# Spoiler: a Service gives the Redis pod a stable name ("redis") and a stable IP.
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  labels:
+    app: redis
+    part-of: podpoll
+spec:
+  selector:
+    app: redis
+  ports:
+    - port: 6379
+      targetPort: 6379

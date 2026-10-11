@@ -1,0 +1,15 @@
+# Module 4 — Namespaces
+# Two "rooms" for the same application.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dev
+  labels:
+    env: dev
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: prod
+  labels:
+    env: prod

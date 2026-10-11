@@ -1,0 +1,48 @@
+# Rendered at container start by the official nginx image (envsubst on /etc/nginx/templates/*.template).
+# Only ${UPSTREAM} and ${APP_VERSION} are substituted; $hostname etc. are nginx variables.
+
+server {
+    listen 80;
+    server_name _;
+
+    root  /usr/share/nginx/html;
+    index index.html;
+
+    # Used by the readiness probe.
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    # "Which frontend pod answered me?"  ($hostname == pod name inside Kubernetes)
+    location = /whoami {
+        default_type text/plain;
+        add_header Cache-Control "no-store" always;
+        return 200 "$hostname\n";
+    }
+
+    # "Which version of the frontend is this?" (handy for watching rolling updates with curl/wget)
+    location = /version {
+        default_type text/plain;
+        add_header Cache-Control "no-store" always;
+        return 200 "${APP_VERSION}\n";
+    }
+
+    # Everything under /api/ is forwarded to the backend.
+    # ${UPSTREAM} is just  <service-name>:<port>  -- e.g. "api:5000".
+    # The short name works because pods get DNS search domains for their own namespace.
+    # NOTE: nginx resolves this name ONCE at startup. If no Service called "api" exists in
+    # the namespace, nginx refuses to start ("host not found in upstream") -> CrashLoopBackOff.
+    location /api/ {
+        proxy_pass http://${UPSTREAM};
+        proxy_connect_timeout 2s;
+        proxy_read_timeout 5s;
+        add_header X-Frontend-Pod $hostname always;
+        add_header Cache-Control "no-store" always;
+    }
+
+    location / {
+        try_files $uri /index.html;
+    }
+}

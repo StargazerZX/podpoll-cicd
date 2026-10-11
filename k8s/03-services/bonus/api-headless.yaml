@@ -1,0 +1,19 @@
+# Module 3 — BONUS: a headless Service.
+# clusterIP: None  =>  no virtual IP, no load balancing by Kubernetes.
+# DNS returns the IP of EVERY ready pod instead (used by databases, StatefulSets, client-side LB).
+#   nslookup api            -> ONE address (the ClusterIP)
+#   nslookup api-headless   -> one address PER POD
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-headless
+  labels:
+    app: api
+    part-of: podpoll
+spec:
+  clusterIP: None
+  selector:
+    app: api
+  ports:
+    - port: 5000
+      targetPort: 5000

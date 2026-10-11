@@ -1,0 +1,19 @@
+# Module 3 — Services
+# Exposes the frontend outside the cluster (on every node's IP, on a high port).
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  labels:
+    app: frontend
+    part-of: podpoll
+spec:
+  type: NodePort
+  selector:
+    app: frontend
+  ports:
+    - port: 80
+      targetPort: 80
+      # nodePort is omitted on purpose: Kubernetes picks a free one (30000-32767).
+      # NodePorts are unique across the WHOLE cluster, not per namespace, so hard-coding
+      # one would make the second copy of this app (Module 4) fail.
