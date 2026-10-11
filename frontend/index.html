@@ -4,106 +4,63 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PodPoll</title>
-<style>
-  :root {
-    --bg: #0f172a; --card: #1e293b; --line: #334155; --text: #e2e8f0; --muted: #94a3b8;
-    --accent: #38bdf8; --ok: #4ade80; --bad: #f87171;
-  }
-  /* Frontend v2.x gets a different accent colour + ribbon, so rolling updates are visible. */
-  body[data-major="2"] { --accent: #fbbf24; }
-  body[data-major="2"] .ribbon { display: block; }
-
-  * { box-sizing: border-box; }
-  body { margin: 0; font: 15px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-         background: var(--bg); color: var(--text); }
-  header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-           padding: 16px 24px; border-bottom: 1px solid var(--line); }
-  header h1 { margin: 0; font-size: 22px; color: var(--accent); }
-  .badge { padding: 3px 12px; border-radius: 999px; font-weight: 700; font-size: 13px; letter-spacing: .5px; }
-  .ribbon { display: none; background: var(--accent); color: #111; }
-  .muted { color: var(--muted); }
-  main { max-width: 1100px; margin: 0 auto; padding: 20px 24px 60px; display: grid; gap: 18px;
-         grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; }
-  .card.wide { grid-column: 1 / -1; }
-  .card h2 { margin: 0 0 4px; font-size: 16px; }
-  .card p.hint { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
-  #banner { display: none; grid-column: 1 / -1; padding: 12px 18px; border-radius: 10px;
-            background: #450a0a; border: 1px solid var(--bad); color: #fecaca; }
-  #banner code { background: #7f1d1d; padding: 1px 6px; border-radius: 4px; }
-
-  .row { display: grid; grid-template-columns: 110px 1fr 44px auto; gap: 10px; align-items: center; margin: 7px 0; }
-  .bar { height: 12px; background: #0f172a; border-radius: 6px; overflow: hidden; }
-  .bar > i { display: block; height: 100%; background: var(--accent); transition: width .4s; }
-  button { background: var(--accent); color: #0b1220; border: 0; border-radius: 8px; padding: 5px 12px;
-           font-weight: 700; cursor: pointer; }
-  button.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); font-weight: 500; }
-  button:hover { filter: brightness(1.1); }
-
-  dl { display: grid; grid-template-columns: 150px 1fr; gap: 4px 12px; margin: 0 0 12px; }
-  dt { color: var(--muted); } dd { margin: 0; font-family: ui-monospace, Menlo, Consolas, monospace; word-break: break-all; }
-
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
-  th { color: var(--muted); font-weight: 600; }
-  td.mono { font-family: ui-monospace, Menlo, Consolas, monospace; }
-  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--ok); margin-right: 6px; }
-  .dot.bad { background: var(--bad); }
-  .empty { color: var(--muted); font-style: italic; padding: 8px 0; }
-
-  .rbac-badge { display: inline-block; padding: 3px 14px; border-radius: 999px; font-weight: 700;
-                font-size: 13px; letter-spacing: .5px; margin: 4px 0 10px; }
-  .rbac-badge.allowed { background: #14532d; color: #bbf7d0; border: 1px solid var(--ok); }
-  .rbac-badge.forbidden { background: #450a0a; color: #fecaca; border: 1px solid var(--bad); }
-  .rbac-msg { background: #1a0f0f; border: 1px solid var(--bad); color: #fecaca; border-radius: 8px;
-              padding: 10px 12px; font-family: ui-monospace, Menlo, Consolas, monospace;
-              font-size: 12px; white-space: pre-wrap; word-break: break-word; margin: 0 0 10px; }
-  .rbac-hint { color: var(--muted); font-size: 12px; margin: 0 0 10px; }
-</style>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%97%B3%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<!-- No inline <script> or <style>: the Content-Security-Policy only allows files from this origin. -->
+<link rel="stylesheet" href="app.css">
+<script src="logic.js" defer></script>
+<script src="app.js" defer></script>
 </head>
-<body>
+<!-- The __TOKENS__ are replaced at image build time by stamp.sh, so the page knows its own build
+     without asking anyone. data-major picks the theme before any JavaScript runs. -->
+<body data-version="__APP_VERSION__" data-major="__APP_MAJOR__" data-git-sha="__GIT_SHA__"
+      data-git-ref="__GIT_REF__" data-build-id="__BUILD_ID__" data-build-url="__BUILD_URL__"
+      data-ci-system="__CI_SYSTEM__" data-build-time="__BUILD_TIME__" data-source-url="__SOURCE_URL__">
 <header>
   <h1>🗳️ PodPoll</h1>
-  <span id="env" class="badge" style="background:#475569">namespace: ?</span>
-  <span class="badge ribbon">FRONTEND v2 🎉</span>
-  <span class="muted">Which Kubernetes object is your favourite?</span>
+  <span id="env" class="badge env-unknown">env: ?</span>
+  <span class="badge ribbon ribbon-v2">FRONTEND v2 🎉</span>
+  <span class="badge ribbon ribbon-v3">FRONTEND v3 ✨</span>
+  <span id="platform" class="chip" hidden></span>
+  <span id="chaos" class="chip chip-warn" hidden></span>
+  <span id="question" class="muted"></span>
 </header>
 
 <main>
-  <div id="banner"></div>
+  <div id="banner" role="alert"></div>
 
-  <section class="card">
+  <section class="card" id="card-vote">
     <h2>1 · Vote <span class="muted">(frontend → api → store)</span></h2>
-    <p class="hint" id="vote-hint">Votes live in Redis. Every click travels through two Kubernetes Services.</p>
+    <p class="hint" id="vote-hint">Waiting for the API…</p>
     <div id="options"></div>
-    <p style="margin:12px 0 0"><button class="ghost" onclick="resetVotes()">reset votes</button>
-       <span class="muted" id="total"></span></p>
+    <p class="vote-footer"><button class="ghost" id="reset-btn" type="button">reset votes</button>
+       <span class="muted" id="total"></span> <span class="vote-status" id="vote-status"></span></p>
   </section>
 
-  <section class="card">
-    <h2>2 · Who answered me? <span class="muted">(Services &amp; Deployments)</span></h2>
-    <p class="hint">Refreshes every 1.5 s. Scale the <code>api</code> Deployment and watch new pods join the rotation.</p>
+  <section class="card" id="card-who">
+    <h2>2 · Who answered me? <span class="muted" id="who-sub"></span></h2>
+    <p class="hint" id="who-hint">Refreshes every 1.5 s.</p>
     <dl>
-      <dt>frontend pod</dt><dd id="fe-pod">…</dd>
+      <dt>frontend <span class="instance-word">instance</span></dt><dd id="fe-pod">…</dd>
       <dt>frontend version</dt><dd id="fe-ver">…</dd>
-      <dt>api pod (last)</dt><dd id="api-pod">…</dd>
+      <dt>api <span class="instance-word">instance</span> (last)</dt><dd id="api-pod">…</dd>
       <dt>api version</dt><dd id="api-ver">…</dd>
       <dt>api node</dt><dd id="api-node">…</dd>
-      <dt>api namespace</dt><dd id="api-ns">…</dd>
+      <dt>api <span id="api-env-label">env</span></dt><dd id="api-ns">…</dd>
+      <dt class="task-row" hidden>task definition</dt><dd class="task-row" id="api-task" hidden>…</dd>
     </dl>
-    <div class="muted" style="margin-bottom:6px">Responses per API pod since page load
-       <button class="ghost" style="padding:1px 8px" onclick="clearSeen()">clear</button></div>
+    <div class="muted seen-title">Responses per API <span class="instance-word">instance</span> since page load
+       <button class="ghost small" id="clear-btn" type="button">clear</button></div>
     <div id="seen"></div>
   </section>
 
-  <section class="card wide">
-    <h2>3 · Cluster nodes <span class="muted">(DaemonSet)</span></h2>
-    <p class="hint">Each row is reported by one <code>node-agent</code> pod. One agent per node — nobody scaled it.</p>
+  <section class="card wide" id="card-nodes">
+    <h2>3 · <span id="nodes-title">Nodes</span></h2>
+    <p class="hint" id="nodes-hint"></p>
     <div id="nodes"></div>
   </section>
 
-  <section class="card">
-    <h2>4 · Where do my votes live? <span class="muted">(Storage &amp; StatefulSets)</span></h2>
+  <section class="card" id="card-storage">
+    <h2>4 · Where do my votes live? <span class="muted" id="storage-sub"></span></h2>
     <p class="hint" id="storage-hint">Waiting for the API…</p>
     <dl>
       <dt>store</dt><dd id="store-kind">…</dd>
@@ -113,165 +70,36 @@
     </dl>
   </section>
 
-  <section class="card">
+  <!-- Kubernetes only: hidden on ECS and Docker, where there is no ServiceAccount. -->
+  <section class="card" id="card-rbac" hidden>
     <h2>5 · What can the API see? <span class="muted">(RBAC)</span></h2>
     <p class="hint">The API asks Kubernetes to list pods, using its OWN ServiceAccount identity — not yours.</p>
     <div>identity: <code id="rbac-identity">…</code></div>
     <div id="rbac-badge" class="rbac-badge">…</div>
     <div id="rbac-body"></div>
   </section>
+
+  <section class="card" id="card-build">
+    <h2>6 · What's running? <span class="muted">(build provenance)</span>
+      <span id="mixed" class="chip chip-warn" hidden>mixed release</span></h2>
+    <p class="hint">Stamped into each image by the pipeline that built it. A different commit on each tier = a mixed release.</p>
+    <table class="build-table">
+      <thead><tr><th></th><th>version</th><th>commit</th><th>build</th><th>CI</th><th>built</th></tr></thead>
+      <tbody>
+        <tr id="build-fe"><th>frontend</th><td class="mono">…</td><td class="mono">…</td><td>…</td><td>…</td><td>…</td></tr>
+        <tr id="build-api"><th>api</th><td class="mono">…</td><td class="mono">…</td><td>…</td><td>…</td><td>…</td></tr>
+      </tbody>
+    </table>
+    <p class="muted small-print" id="build-ref"></p>
+  </section>
+
+  <!-- Shown only when the pipeline passed a security summary to the API (RELEASE_SECURITY_SUMMARY). -->
+  <section class="card" id="card-security" hidden>
+    <h2>7 · Release security <span class="muted">(what the pipeline found)</span></h2>
+    <p class="hint" id="security-hint"></p>
+    <div id="security-badge" class="rbac-badge">…</div>
+    <div id="security-body"></div>
+  </section>
 </main>
-
-<script>
-  const FRONTEND_VERSION = "__APP_VERSION__";   // replaced at image build time (see Dockerfile)
-  document.body.dataset.major = FRONTEND_VERSION.split(".")[0];
-  document.getElementById("fe-ver").textContent = FRONTEND_VERSION;
-
-  const OPTIONS = ["Pod", "Deployment", "Service", "Namespace", "DaemonSet", "ConfigMap"];
-  const $ = (id) => document.getElementById(id);
-  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  let seen = {};
-
-  function envColour(ns) {
-    if (ns === "prod") return "#b91c1c";
-    if (ns === "dev") return "#15803d";
-    if (ns === "default") return "#1d4ed8";
-    return "#7e22ce";
-  }
-
-  function banner(msg) {
-    const b = $("banner");
-    if (!msg) { b.style.display = "none"; return; }
-    b.innerHTML = msg; b.style.display = "block";
-  }
-
-  async function getJSON(url) {
-    const res = await fetch(url, { cache: "no-store" });
-    const fe = res.headers.get("X-Frontend-Pod");
-    if (fe) $("fe-pod").textContent = fe;
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    return res.json();
-  }
-
-  // ---- card 2: who answered? / card 1+4: which store? ------------------------
-  async function pollInfo() {
-    try {
-      const d = await getJSON("/api/info");
-      banner("");
-      $("api-pod").textContent = d.pod;
-      $("api-ver").textContent = d.version;
-      $("api-node").textContent = d.node;
-      $("api-ns").textContent = d.namespace;
-      const badge = $("env");
-      badge.textContent = "namespace: " + d.namespace;
-      badge.style.background = envColour(d.namespace);
-      seen[d.pod] = (seen[d.pod] || 0) + 1;
-      renderSeen();
-
-      // card 1 hint + card 4 (storage / StatefulSets)
-      if (d.store === "postgres") {
-        $("vote-hint").innerHTML = "Votes live in <b>PostgreSQL</b> (<code>" + esc(d.db_server) +
-          "</code>), on a PersistentVolume. Try deleting that pod — it comes back with the same name and the same data.";
-        $("storage-hint").textContent = "PostgreSQL, running as a StatefulSet, one PersistentVolumeClaim per pod.";
-      } else {
-        $("vote-hint").innerHTML = "Votes live in <b>Redis</b> — in memory, gone the moment the pod restarts (until Module 6 gives it a disk).";
-        $("storage-hint").textContent = "Redis, running as a Deployment. No disk yet unless Module 6's redis-persistent.yaml is applied.";
-      }
-      $("store-kind").textContent = d.store;
-      $("store-host").textContent = d.db_host;
-      $("store-server").textContent = d.db_server;
-      const dot = $("store-status").querySelector(".dot");
-      dot.classList.toggle("bad", !d.db_ok);
-      $("store-status-text").textContent = d.db_ok ? "reachable" : "unreachable";
-    } catch (e) {
-      banner("⚠️ API unreachable (" + esc(e.message) + "). Debug it like a pro: " +
-             "<code>kubectl get endpoints api</code> · <code>kubectl get pods</code> · <code>kubectl describe svc api</code>");
-    }
-  }
-  function renderSeen() {
-    const names = Object.keys(seen).sort();
-    const max = Math.max(1, ...Object.values(seen));
-    $("seen").innerHTML = names.map((n) =>
-      `<div class="row" style="grid-template-columns: 1fr 140px 44px"><span class="mono" style="font-family:monospace;font-size:12px">${esc(n)}</span>` +
-      `<div class="bar"><i style="width:${(100 * seen[n]) / max}%"></i></div><span>${seen[n]}</span></div>`).join("")
-      || '<div class="empty">no responses yet</div>';
-  }
-  function clearSeen() { seen = {}; renderSeen(); }
-
-  // ---- card 1: votes --------------------------------------------------------
-  async function pollResults() {
-    try {
-      const d = await getJSON("/api/results");
-      const max = Math.max(1, ...d.results.map((r) => r.votes));
-      $("options").innerHTML = d.results.map((r) =>
-        `<div class="row"><b>${esc(r.option)}</b><div class="bar"><i style="width:${(100 * r.votes) / max}%"></i></div>` +
-        `<span>${r.votes}</span><button onclick="vote('${esc(r.option)}')">vote</button></div>`).join("");
-      $("total").textContent = "  total votes: " + d.total;
-    } catch (e) {
-      $("options").innerHTML = '<div class="empty">results unavailable right now</div>';
-    }
-  }
-  async function vote(option) {
-    await fetch("/api/vote", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ option }) });
-    pollResults();
-  }
-  async function resetVotes() { await fetch("/api/reset", { method: "POST" }); pollResults(); }
-
-  // ---- card 3: nodes (DaemonSet) ---------------------------------------------
-  async function pollNodes() {
-    try {
-      const d = await getJSON("/api/nodes");
-      if (!d.nodes.length) {
-        $("nodes").innerHTML = '<div class="empty">No node-agent is reporting yet. That is expected until Module 5 (DaemonSets).</div>';
-        return;
-      }
-      $("nodes").innerHTML =
-        "<table><tr><th>node</th><th>agent pod</th><th>pods on node</th><th>load (1m)</th><th>mem used</th><th>kernel</th><th>last seen</th></tr>" +
-        d.nodes.map((n) => `<tr><td><span class="dot"></span><b>${esc(n.node)}</b></td><td class="mono">${esc(n.agent_pod)}</td>` +
-          `<td>${esc(n.pods_on_node ?? "?")}</td><td>${esc(n.load1 ?? "?")}</td><td>${esc(n.mem_used_pct ?? "?")}%</td>` +
-          `<td class="mono">${esc(n.kernel)}</td><td>${esc(n.age_seconds)} s ago</td></tr>`).join("") + "</table>";
-    } catch (e) {
-      $("nodes").innerHTML = '<div class="empty">node list unavailable right now</div>';
-    }
-  }
-
-  // ---- card 5: RBAC -----------------------------------------------------------
-  async function pollRbac() {
-    try {
-      const d = await getJSON("/api/cluster/pods");
-      $("rbac-identity").textContent = d.identity;
-      const badge = $("rbac-badge");
-      const body = $("rbac-body");
-      if (d.allowed) {
-        badge.textContent = "ALLOWED";
-        badge.className = "rbac-badge allowed";
-        if (d.pods.length) {
-          body.innerHTML =
-            "<table><tr><th>pod</th><th>phase</th><th>ready</th><th>node</th></tr>" +
-            d.pods.map((p) => `<tr><td class="mono">${esc(p.name)}</td><td>${esc(p.phase)}</td>` +
-              `<td>${esc(p.ready)}</td><td>${esc(p.node)}</td></tr>`).join("") + "</table>";
-        } else {
-          body.innerHTML = '<div class="empty">allowed, but no matching pods found</div>';
-        }
-      } else {
-        badge.textContent = d.status ? `FORBIDDEN (${d.status})` : "UNAVAILABLE";
-        badge.className = "rbac-badge forbidden";
-        body.innerHTML = '<div class="rbac-msg">' + esc(d.message) + '</div>' +
-          '<div class="rbac-hint">That is RBAC saying no. Module 8 fixes this by giving the API its own ServiceAccount, a Role, and a RoleBinding.</div>';
-      }
-    } catch (e) {
-      $("rbac-badge").textContent = "UNAVAILABLE";
-      $("rbac-badge").className = "rbac-badge forbidden";
-      $("rbac-body").innerHTML = '<div class="empty">RBAC status unavailable right now</div>';
-    }
-  }
-
-  renderSeen();
-  pollInfo(); pollResults(); pollNodes(); pollRbac();
-  setInterval(pollInfo, 1500);
-  setInterval(pollResults, 3000);
-  setInterval(pollNodes, 3000);
-  setInterval(pollRbac, 3000);
-</script>
 </body>
 </html>

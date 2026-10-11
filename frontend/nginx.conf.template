@@ -1,48 +1,63 @@
-# Rendered at container start by the official nginx image (envsubst on /etc/nginx/templates/*.template).
-# Only ${UPSTREAM} and ${APP_VERSION} are substituted; $hostname etc. are nginx variables.
+# Rendered at container start by the nginx image (envsubst on /etc/nginx/templates/*.template).
+# Only ${UPSTREAM} is substituted (NGINX_ENVSUBST_FILTER in the Dockerfile); $hostname etc. are
+# nginx variables. Unprivileged image: listens on 8080 and runs as uid 101, not root.
 
 server {
-    listen 80;
+    listen 8080;
     server_name _;
+    server_tokens off;            # no nginx version in headers or error pages
 
     root  /usr/share/nginx/html;
     index index.html;
 
-    # Used by the readiness probe.
+    include /etc/nginx/snippets/security-headers.conf;
+
+    # Liveness/readiness for probes, ALB target groups and the Docker HEALTHCHECK.
     location = /healthz {
         access_log off;
         default_type text/plain;
         return 200 "ok\n";
     }
 
-    # "Which frontend pod answered me?"  ($hostname == pod name inside Kubernetes)
+    # "Which frontend instance answered me?"  ($hostname == pod name on k8s, container ID on Docker)
     location = /whoami {
         default_type text/plain;
+        include /etc/nginx/snippets/security-headers.conf;
         add_header Cache-Control "no-store" always;
         return 200 "$hostname\n";
     }
 
-    # "Which version of the frontend is this?" (handy for watching rolling updates with curl/wget)
+    # "Which version of the frontend is this?" (handy for curl loops during rollouts).
+    # version.txt is written by stamp.sh at build time from the SANITISED APP_VERSION.
     location = /version {
         default_type text/plain;
+        include /etc/nginx/snippets/security-headers.conf;
         add_header Cache-Control "no-store" always;
-        return 200 "${APP_VERSION}\n";
+        try_files /version.txt =404;
+    }
+
+    # Full build provenance of THIS frontend image (same shape as the API's /api/build).
+    location = /build.json {
+        include /etc/nginx/snippets/security-headers.conf;
+        add_header Cache-Control "no-store" always;
     }
 
     # Everything under /api/ is forwarded to the backend.
     # ${UPSTREAM} is just  <service-name>:<port>  -- e.g. "api:5000".
-    # The short name works because pods get DNS search domains for their own namespace.
-    # NOTE: nginx resolves this name ONCE at startup. If no Service called "api" exists in
-    # the namespace, nginx refuses to start ("host not found in upstream") -> CrashLoopBackOff.
+    # NOTE: nginx resolves this name ONCE at startup. If no service called "api" exists yet,
+    # nginx refuses to start ("host not found in upstream") -> the container restarts.
     location /api/ {
         proxy_pass http://${UPSTREAM};
         proxy_connect_timeout 2s;
         proxy_read_timeout 5s;
+        include /etc/nginx/snippets/security-headers.conf;
         add_header X-Frontend-Pod $hostname always;
         add_header Cache-Control "no-store" always;
     }
 
     location / {
+        include /etc/nginx/snippets/security-headers.conf;
+        add_header Cache-Control "no-cache" always;   # revalidate, so a new release shows up on reload
         try_files $uri /index.html;
     }
 }
