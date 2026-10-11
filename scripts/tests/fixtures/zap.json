@@ -1,0 +1,5 @@
+{"_comment": "HAND-WRITTEN from the documented zap-baseline.py -J report shape (verified against a real run in Phase 3).",
+ "@version": "2.16.1", "site": [{"@name": "http://localhost:8081", "alerts": [
+  {"pluginid": "10038", "alert": "Content Security Policy (CSP) Header Not Set", "name": "Content Security Policy (CSP) Header Not Set", "riskcode": "2", "instances": [{"uri": "http://localhost:8081/"}, {"uri": "http://localhost:8081/app.js"}]},
+  {"pluginid": "10021", "alert": "X-Content-Type-Options Header Missing", "name": "X-Content-Type-Options Header Missing", "riskcode": "1", "instances": [{"uri": "http://localhost:8081/"}]}
+ ]}]}

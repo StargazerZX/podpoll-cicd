@@ -1,0 +1,2 @@
+{"_comment": "HAND-WRITTEN from the documented GET /api/qualitygates/project_status response.",
+ "projectStatus": {"status": "ERROR", "conditions": [{"status": "ERROR", "metricKey": "new_security_rating", "comparator": "GT", "errorThreshold": "1", "actualValue": "5"}]}}

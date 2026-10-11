@@ -1,0 +1,11 @@
+{"_comment": "HAND-WRITTEN from the documented GET /api/issues/search response (not captured from a live server yet; see docs/build-log.md).",
+ "total": 3, "issues": [
+  {"key": "AY1", "rule": "pythonsecurity:S3649", "component": "podpoll:api/app.py", "line": 301,
+   "message": "Change this code to not construct SQL queries directly from user-controlled data.",
+   "impacts": [{"softwareQuality": "SECURITY", "severity": "BLOCKER"}], "issueStatus": "OPEN"},
+  {"key": "AY2", "rule": "python:S1192", "component": "podpoll:api/app.py", "line": 120,
+   "message": "Define a constant instead of duplicating this literal 3 times.",
+   "impacts": [{"softwareQuality": "MAINTAINABILITY", "severity": "LOW"}], "issueStatus": "OPEN"},
+  {"key": "AY3", "rule": "python:S5332", "component": "podpoll:api/app.py", "line": 88, "message": "Using http protocol is insecure.",
+   "severity": "CRITICAL", "issueStatus": "ACCEPTED"}
+ ]}

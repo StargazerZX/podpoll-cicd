@@ -1,0 +1,42 @@
+{
+  "SchemaVersion": 2,
+  "Trivy": {
+    "Version": "0.74.0"
+  },
+  "ReportID": "01a12a82-5a74-7ce2-b513-caf85ef44538",
+  "CreatedAt": "2026-10-11T13:29:08.340845837+03:00",
+  "ArtifactID": "sha256:d5ab4e35545a69f779efa502c3ffcfb303970f7db5f69bfd18e2118a7a31c0fb",
+  "ArtifactName": ".",
+  "ArtifactType": "repository",
+  "Results": [
+    {
+      "Target": "Dockerfile",
+      "Class": "config",
+      "Type": "dockerfile",
+      "MisconfSummary": {
+        "Successes": 25,
+        "Failures": 2
+      },
+      "Misconfigurations": [
+        {
+          "Type": "Dockerfile Security Check",
+          "ID": "DS-0002",
+          "AVDID": null,
+          "Title": "Image user should not be 'root'",
+          "Severity": "HIGH",
+          "Status": "FAIL",
+          "Message": "Last USER command in Dockerfile should not be 'root'"
+        },
+        {
+          "Type": "Dockerfile Security Check",
+          "ID": "DS-0026",
+          "AVDID": null,
+          "Title": "No HEALTHCHECK defined",
+          "Severity": "LOW",
+          "Status": "FAIL",
+          "Message": "Add HEALTHCHECK instruction in your Dockerfile"
+        }
+      ]
+    }
+  ]
+}

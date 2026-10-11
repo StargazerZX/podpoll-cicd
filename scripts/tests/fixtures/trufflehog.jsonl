@@ -1,0 +1,2 @@
+{"SourceMetadata":{"Data":{"Filesystem":{"file":"config.ini","line":1}}},"SourceName":"trufflehog - filesystem","DetectorType":2,"DetectorName":"AWS","DecoderName":"PLAIN","Verified":false,"Raw":"REDACTED"}
+{"SourceMetadata":{"Data":{"Filesystem":{"file":".git/objects/12/983b9894c55c296e4a59fd5e6c4d92eaa45285","line":1}}},"SourceName":"trufflehog - filesystem","DetectorType":2,"DetectorName":"AWS","DecoderName":"PLAIN","Verified":false,"Raw":"REDACTED"}
