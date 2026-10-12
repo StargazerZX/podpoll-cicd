@@ -1,0 +1,5 @@
+# Code owners: GitHub requests a review from these accounts on every PR that touches the paths.
+# With "Require review from Code Owners" in a ruleset, their approval becomes mandatory.
+# Replace StargazerZX with YOUR GitHub user name in your fork.
+*                     @StargazerZX
+/.github/             @StargazerZX
