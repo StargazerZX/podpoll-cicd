@@ -1,0 +1,60 @@
+# CI for PodPoll: test -> build the three images (push on non-PR events) -> smoke-test what was
+# pushed -> ci-ok, the single check a ruleset requires.
+# Works for trunk-based (main) and Gitflow (develop, release/**, hotfix/**) alike.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - develop
+      - "release/**"
+      - "hotfix/**"
+      # Upstream only: lets the reference-solution branches prove they work. Harmless in a fork.
+      - "solution/**"
+    tags:
+      - "v*"
+
+# Least privilege: the GITHUB_TOKEN gets NO permissions by default; each job asks for what it needs.
+permissions: {}
+
+# One run per branch/PR at a time. A new push to a PR cancels the outdated run; pushes to
+# branches queue instead (never cancel a build that may be publishing images).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          # No dependency cache: nothing here needs one, and a cache that a PR can write to and a
+          # publishing build later reads is a cache-poisoning risk (zizmor: cache-poisoning).
+          package-manager-cache: false
+      - name: Run every test suite (API incl. Postgres, node-agent, scripts, frontend)
+        run: scripts/test.sh
+      - name: Keep the coverage report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage
+          path: api/coverage.xml
+          if-no-files-found: ignore
+          retention-days: 7
