@@ -58,3 +58,72 @@ jobs:
           path: api/coverage.xml
           if-no-files-found: ignore
           retention-days: 7
+
+  build:
+    name: build (${{ matrix.component }})
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        component: [api, frontend, node-agent]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # APP_VERSION, GIT_SHA, GIT_REF, BUILD_ID, BUILD_URL, CI_SYSTEM, BUILD_TIME, SOURCE_URL, IMAGE_TAG
+      - name: Compute build provenance
+        run: scripts/version.sh | tee -a "$GITHUB_ENV"
+
+      - name: Image name and tags
+        env:
+          OWNER: ${{ github.repository_owner }}
+          COMPONENT: ${{ matrix.component }}
+        run: |
+          image="${REGISTRY}/${OWNER,,}/podpoll-${COMPONENT}"   # registry paths must be lowercase
+          tags="${image}:${IMAGE_TAG}"                          # immutable: sha-<12 hex chars>
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            tags+=$'\n'"${image}:${GITHUB_REF_NAME}"            # plus vX.Y.Z on release tags
+          fi
+          echo "IMAGE=${image}" >> "$GITHUB_ENV"
+          { echo "TAGS<<EOF"; echo "$tags"; echo "EOF"; } >> "$GITHUB_ENV"
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ matrix.component }}
+          push: false # step 3 publishes
+          tags: ${{ env.TAGS }}
+          build-args: |
+            APP_VERSION=${{ env.APP_VERSION }}
+            GIT_SHA=${{ env.GIT_SHA }}
+            GIT_REF=${{ env.GIT_REF }}
+            BUILD_ID=${{ env.BUILD_ID }}
+            BUILD_URL=${{ env.BUILD_URL }}
+            CI_SYSTEM=${{ env.CI_SYSTEM }}
+            BUILD_TIME=${{ env.BUILD_TIME }}
+            SOURCE_URL=${{ env.SOURCE_URL }}
+          cache-from: type=gha,scope=${{ matrix.component }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.component }}
+
+      - name: Summary
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          PUSHED: "false"
+        run: |
+          {
+            echo "### ${IMAGE##*/}"
+            echo "| | |"
+            echo "|---|---|"
+            echo "| version | \`${APP_VERSION}\` |"
+            echo "| tags | \`$(echo "$TAGS" | tr '\n' ' ')\` |"
+            echo "| digest | \`${DIGEST}\` |"
+            echo "| pushed | ${PUSHED} |"
+          } >> "$GITHUB_STEP_SUMMARY"
