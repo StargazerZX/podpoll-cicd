@@ -203,3 +203,46 @@ installed AWS CLI's help). **Not done:** a run by someone other than the maintai
 `scripts/test.sh`: API 79 + node-agent 5 + security-report 13 + frontend 9 = **106 passed**. `ruff`, `shellcheck`, guard clean.
 
 **AWS cost:** $0.
+
+---
+
+## M1: Phase 1, a basic pipeline on GitHub Actions (2026-10-12)
+
+**Delivered:** `solution/phase-1` (one commit per lab step: test → build → push → smoke → ci-ok → CODEOWNERS),
+`docs/labs/phase-1-basic-pipeline.md`, `labs/check-phase-1.sh`, Phase 1 action pins in `docs/versions.md`.
+Jenkins track: deferred (see the M0 part 2 decision).
+
+### What ran
+
+| Check | Result |
+|---|---|
+| actionlint 1.7.12 on every intermediate step of `ci.yml` (steps 1–5) | clean |
+| zizmor 1.30.1 (`--offline`, default and `--persona=pedantic`) | clean, after one fix: `setup-node` v7 caches by default, flagged as cache-poisoning (HIGH, low confidence) in a workflow that publishes; set `package-manager-cache: false` |
+| Each step commit's `ci.yml` is byte-identical to the linted version | yes |
+| Rehearsal of the smoke job on the build machine (local registry on :5001 → `compose.registry.yaml` → `--wait` → `smoke-test.sh --expect-sha`) | PASS; this was also the first real run of `local/compose.registry.yaml` |
+| **Real run on GitHub:** push of `solution/phase-1` → [run 38238653588](https://github.com/StargazerZX/podpoll-cicd/actions/runs/38238653588) | **all 6 jobs green on the first attempt:** test, build (api / frontend / node-agent), smoke (pushed images), ci-ok |
+| GHCR: `ghcr.io/stargazerzx/podpoll-{api,frontend,node-agent}:sha-6a570a9ea55c` | exist, and are **pullable anonymously**: packages pushed by a public repository's workflow came out public, with no visibility change needed |
+| Image labels (`docker buildx imagetools inspect`) | `revision` = the commit, `source` = the repository URL, `version` = `1.0.0-solution-phase-1.6a570a9`, `created` = the build time |
+| The pipeline's images run locally via `compose.registry.yaml` | smoke test PASS; card 6 shows `github-actions`, build `#1` linking to the run, and the commit: [phase1-ghcr-images.png](screenshots/phase1-ghcr-images.png) |
+| `labs/check-phase-1.sh` on `main` | fails with a hint for each missing piece (no workflow, no run, no ruleset), exit 1 |
+| `labs/check-phase-1.sh --branch solution/phase-1` | workflow, run and images ✔; **ruleset checks ✘**, because no ruleset is imported in the upstream repository yet |
+| Guide commands (the `version.sh` hint, `imagetools --format`) | run; the label command needed `.Image.Config.Labels` (capitalised) and was fixed |
+
+### Not verified yet, and why
+
+| Item | Why |
+|---|---|
+| The `pull_request` path (build without push, smoke skipped, ci-ok passes with smoke=skipped) | needs a PR, and no GitHub token is used here. Opening any PR against `main` in the repository exercises it |
+| A `v*` tag build (`vX.Y.Z` image tag) | pushing a tag to the public upstream repository was not part of the go-ahead |
+| Ruleset import and enforcement (Task 6 checkpoints) | GitHub UI step, done by the repository owner |
+| A student following the guide from a real fork | to be done by the user |
+
+### Design notes
+
+- The reference workflow also triggers on `solution/**`, so each solution branch proves itself in the
+  upstream repository (the plan's "each solution branch's own pipeline proves that branch works").
+  It is commented as upstream-only and harmless in forks.
+- `ci-ok` treats `smoke=skipped` as OK **only** for `pull_request` events, so a push run where smoke was
+  skipped for any other reason fails the gate.
+
+**AWS cost:** $0. GitHub: public repository, so Actions minutes and GHCR storage are free.
