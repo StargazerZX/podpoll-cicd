@@ -63,6 +63,23 @@ uv pip compile --universal --python-version 3.12 --generate-hashes api/requireme
 |---|---|---|
 | @playwright/test | 1.63.0 | 1.64.0 (2026-10-07) was inside the 7-day cooldown |
 
+## GitHub Actions (solution/phase-1 onwards)
+
+Pinned by full commit SHA. Each SHA was resolved two independent ways (GitHub API, following annotated tags,
+and `git ls-remote '<tag>^{}'`); both agreed. Inputs were checked against the `action.yml` at that commit.
+
+| Action | Version | Commit | Released | Note |
+|---|---|---|---|---|
+| actions/checkout | v7.0.1 | `3d3c42e5aac5ba805825da76410c181273ba90b1` | 2026-07-20 | v7 refuses fork-PR checkouts under `pull_request_target` unless `allow-unsafe-pr-checkout: true` |
+| actions/setup-python | v7.0.0 | `5fda3b95a4ea91299a34e894583c3862153e4b97` | 2026-07-20 | |
+| actions/setup-node | v7.0.0 | `820762786026740c76f36085b0efc47a31fe5020` | 2026-07-14 | v7.1.0 (2026-10-08) was inside the cooldown; caching on by default, so `package-manager-cache: false` |
+| actions/upload-artifact | v7.0.1 | `043fb46d1a93c77aae656e7c1c64a875d1fc6a0a` | 2026-04-10 | v7.0.2 (2026-10-07) was inside the cooldown |
+| docker/setup-buildx-action | v4.4.1 | `f87e5991a6d7451dcb8d9637bfbc97413f497069` | 2026-09-16 | |
+| docker/login-action | v4.6.0 | `dbcb813823bdd20940b903addbd779551569679f` | 2026-07-29 | |
+| docker/build-push-action | v7.4.0 | `c3c9e263c25d99ce0380d002d59b67737d91b0dc` | 2026-09-15 | |
+
+Runner image: `ubuntu-24.04` (not `ubuntu-latest`, which moves).
+
 ## Maintainer workstation tools (not used by the app; for reference)
 
 Installed on the build machine on 2026-10-11, each verified against the publisher's checksum or GitHub's
