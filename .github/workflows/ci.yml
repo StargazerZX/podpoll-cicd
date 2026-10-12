@@ -136,3 +136,36 @@ jobs:
             echo "| digest | \`${DIGEST}\` |"
             echo "| pushed | ${PUSHED} |"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  smoke:
+    name: smoke (pushed images)
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: read # pull the images we just pushed (they may still be private)
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Compute build provenance
+        run: scripts/version.sh >> "$GITHUB_ENV"
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Start PodPoll from the pushed images
+        env:
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          export IMAGE_REGISTRY="${REGISTRY}/${OWNER,,}"
+          docker compose -p podpoll-ci -f local/compose.yaml -f local/compose.registry.yaml \
+            --env-file local/env/dev.env up -d --wait --wait-timeout 120
+      - name: Smoke test (right commit on both tiers, store reachable, a vote counts)
+        run: scripts/smoke-test.sh http://localhost:8081 --expect-sha "$GIT_SHA" --expect-env dev --timeout 60
+      - name: Container logs
+        if: failure()
+        run: docker compose -p podpoll-ci -f local/compose.yaml logs --no-color --tail 100
