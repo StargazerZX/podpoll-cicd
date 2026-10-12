@@ -169,3 +169,26 @@ jobs:
       - name: Container logs
         if: failure()
         run: docker compose -p podpoll-ci -f local/compose.yaml logs --no-color --tail 100
+
+  # The ONE check the branch ruleset requires. It needs every other job, and `if: always()` makes it
+  # run (and fail) even when something upstream failed; otherwise it would be "skipped", and a
+  # skipped required check does not block a merge.
+  ci-ok:
+    name: ci-ok
+    needs: [test, build, smoke]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - name: Did every required job pass?
+        env:
+          TEST: ${{ needs.test.result }}
+          BUILD: ${{ needs.build.result }}
+          SMOKE: ${{ needs.smoke.result }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          echo "test=$TEST build=$BUILD smoke=$SMOKE (event: $EVENT)"
+          [[ "$TEST" == "success" && "$BUILD" == "success" ]] || exit 1
+          # smoke only runs when images were pushed, so "skipped" is fine on pull requests only.
+          [[ "$SMOKE" == "success" || ( "$SMOKE" == "skipped" && "$EVENT" == "pull_request" ) ]] || exit 1
